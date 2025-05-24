@@ -1,1 +1,69 @@
 
+<?php
+header('Content-Type: application/json');
+
+// Include PHPMailer library files
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
+
+// Basic validation on server side too
+function is_post_request() {
+    return $_SERVER['REQUEST_METHOD'] === 'POST';
+}
+
+function is_valid_email($email) {
+    return filter_var($email, FILTER_VALIDATE_EMAIL);
+}
+
+if (!is_post_request()) {
+    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+    exit;
+}
+
+$name = isset($_POST['name']) ? trim($_POST['name']) : '';
+$email = isset($_POST['email']) ? trim($_POST['email']) : '';
+$subject = isset($_POST['subject']) ? trim($_POST['subject']) : '';
+$message = isset($_POST['message']) ? trim($_POST['message']) : '';
+
+// Validate fields
+if (!$name || !$email || !$subject || !$message) {
+    echo json_encode(['success' => false, 'message' => 'Please fill in all the fields.']);
+    exit;
+}
+if (!is_valid_email($email)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid email address.']);
+    exit;
+}
+
+// Create an instance of PHPMailer
+$mail = new PHPMailer(true);
+
+try {
+    // Server settings
+    $mail->isSMTP();
+    $mail->Host = 'smtp.example.com';           // Set the SMTP server to send through
+    $mail->SMTPAuth = true;                      
+    $mail->Username = 'your_smtp_username';     // SMTP username
+    $mail->Password = 'your_smtp_password';     // SMTP password
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
+    $mail->Port = 587;                           // TCP port to connect to
+
+    // Recipients
+    $mail->setFrom($email, $name);
+    $mail->addAddress('your_email@example.com', 'Your Name'); // Your receiving email
+
+    // Content
+    $mail->isHTML(true);
+    $mail->Subject = htmlspecialchars($subject);
+    $mail->Body = nl2br(htmlspecialchars($message));
+    $mail->AltBody = htmlspecialchars($message);
+
+    $mail->send();
+    echo json_encode(['success' => true, 'message' => 'Your message has been sent successfully!']);
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => "Mailer Error: {$mail->ErrorInfo}"]);
+}
